@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.diary.backend.dto.UpdatePasswordRequest;
 import com.diary.backend.dto.UpdateProfileRequest;
 
+import java.util.Objects;
+
 @Service
 public class UserService {
 
@@ -18,8 +20,11 @@ public class UserService {
     private UserMapper userMapper;
 
     public User login(LoginRequest request) {
+        if (request == null || request.getEmail() == null || request.getPassword() == null) {
+            return null;
+        }
         User user = userMapper.findByEmail(request.getEmail());
-        if (user != null && user.getPassword().equals(request.getPassword())) {
+        if (user != null && Objects.equals(user.getPassword(), request.getPassword())) {
             return user;
         }
         return null;
@@ -27,6 +32,15 @@ public class UserService {
 
     @Transactional
     public User register(RegisterRequest request) {
+        if (request == null || request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new RuntimeException("Email is required");
+        }
+        if (request.getPassword() == null || request.getPassword().isBlank()) {
+            throw new RuntimeException("Password is required");
+        }
+        if (request.getName() == null || request.getName().isBlank()) {
+            throw new RuntimeException("Name is required");
+        }
         User existing = userMapper.findByEmail(request.getEmail());
         if (existing != null) {
             throw new RuntimeException("Email already exists");
@@ -59,11 +73,14 @@ public class UserService {
 
     @Transactional
     public void updatePassword(UpdatePasswordRequest request) {
+        if (request == null || request.getNewPassword() == null || request.getNewPassword().isBlank()) {
+            throw new RuntimeException("New password is required");
+        }
         User user = userMapper.findById(request.getUserId());
         if (user == null) {
             throw new RuntimeException("User not found");
         }
-        if (!user.getPassword().equals(request.getCurrentPassword())) {
+        if (!Objects.equals(user.getPassword(), request.getCurrentPassword())) {
             throw new RuntimeException("Incorrect current password");
         }
         user.setPassword(request.getNewPassword());
