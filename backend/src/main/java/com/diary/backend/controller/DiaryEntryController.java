@@ -53,12 +53,21 @@ public class DiaryEntryController {
 
     @PutMapping("/{id}/folder")
     public Result<Void> moveEntryToFolder(@PathVariable String id, @RequestBody Map<String, Object> payload) {
-        String folderId = (String) payload.get("folderId");
+        if (payload == null) {
+            return Result.error(400, "Request body is required");
+        }
+        Object folderIdObj = payload.get("folderId");
+        String folderId = folderIdObj != null ? folderIdObj.toString() : null;
         Object userIdObj = payload.get("userId");
         if (userIdObj == null) {
             return Result.error(400, "User ID is required");
         }
-        Long userId = Long.valueOf(userIdObj.toString());
+        Long userId;
+        try {
+            userId = Long.valueOf(userIdObj.toString());
+        } catch (NumberFormatException e) {
+            return Result.error(400, "Invalid user ID");
+        }
         
         try {
             diaryEntryService.moveEntryToFolder(id, folderId, userId);
