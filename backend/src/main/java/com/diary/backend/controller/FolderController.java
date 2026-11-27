@@ -23,34 +23,50 @@ public class FolderController {
 
     @PostMapping
     public Result<Folder> createFolder(@RequestBody Map<String, Object> payload) {
+        if (payload == null) {
+            return Result.error(400, "Request body is required");
+        }
         Object userIdObj = payload.get("userId");
-        String name = (String) payload.get("name");
+        Object nameObj = payload.get("name");
         
         if (userIdObj == null) {
             return Result.error(400, "User ID is required");
         }
-        if (name == null || name.trim().isEmpty()) {
+        if (!(nameObj instanceof String name) || name.isBlank()) {
             return Result.error(400, "Folder name is required");
         }
         
-        Long userId = Long.valueOf(userIdObj.toString());
-        return folderService.createFolder(userId, name);
+        Long userId;
+        try {
+            userId = Long.valueOf(userIdObj.toString());
+        } catch (NumberFormatException e) {
+            return Result.error(400, "Invalid user ID");
+        }
+        return folderService.createFolder(userId, name.trim());
     }
 
     @PutMapping("/{id}")
     public Result<Void> updateFolder(@PathVariable String id, @RequestBody Map<String, Object> payload) {
+        if (payload == null) {
+            return Result.error(400, "Request body is required");
+        }
         Object userIdObj = payload.get("userId");
-        String name = (String) payload.get("name");
+        Object nameObj = payload.get("name");
         
         if (userIdObj == null) {
             return Result.error(400, "User ID is required");
         }
-        if (name == null || name.trim().isEmpty()) {
+        if (!(nameObj instanceof String name) || name.isBlank()) {
             return Result.error(400, "Folder name is required");
         }
         
-        Long userId = Long.valueOf(userIdObj.toString());
-        return folderService.updateFolder(userId, id, name);
+        Long userId;
+        try {
+            userId = Long.valueOf(userIdObj.toString());
+        } catch (NumberFormatException e) {
+            return Result.error(400, "Invalid user ID");
+        }
+        return folderService.updateFolder(userId, id, name.trim());
     }
 
     @DeleteMapping("/{id}")

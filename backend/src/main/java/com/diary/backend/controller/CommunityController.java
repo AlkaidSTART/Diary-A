@@ -60,16 +60,33 @@ public class CommunityController {
 
     @PostMapping("/entries/{id}/comments")
     public Result<Comment> addComment(@PathVariable String id, @RequestBody Map<String, Object> payload) {
-        Long userId = ((Number) payload.get("userId")).longValue();
-        String content = (String) payload.get("content");
-        Long parentId = null;
-        if (payload.get("parentId") != null) {
-            parentId = ((Number) payload.get("parentId")).longValue();
+        if (payload == null) {
+            return Result.error(400, "Request body is required");
+        }
+        Object userIdObj = payload.get("userId");
+        Object contentObj = payload.get("content");
+        if (userIdObj == null || !(contentObj instanceof String content) || content.isBlank()) {
+            return Result.error(400, "User ID and content required");
         }
 
-        if (userId == null || content == null) return Result.error(400, "User ID and content required");
-        
-        Comment comment = communityService.addComment(userId, id, content, parentId);
+        Long userId;
+        try {
+            userId = userIdObj instanceof Number n ? n.longValue() : Long.valueOf(userIdObj.toString());
+        } catch (NumberFormatException e) {
+            return Result.error(400, "Invalid user ID");
+        }
+
+        Long parentId = null;
+        Object parentIdObj = payload.get("parentId");
+        if (parentIdObj != null) {
+            try {
+                parentId = parentIdObj instanceof Number n ? n.longValue() : Long.valueOf(parentIdObj.toString());
+            } catch (NumberFormatException e) {
+                return Result.error(400, "Invalid parent comment ID");
+            }
+        }
+
+        Comment comment = communityService.addComment(userId, id, content.trim(), parentId);
         return Result.success(comment);
     }
 

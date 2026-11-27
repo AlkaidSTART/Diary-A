@@ -4,6 +4,8 @@ import com.diary.backend.common.Result;
 import com.diary.backend.entity.Book;
 import com.diary.backend.entity.BookNote;
 import com.diary.backend.service.BookService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/books")
 public class BookController {
+
+    private static final Logger log = LoggerFactory.getLogger(BookController.class);
 
     @Autowired
     private BookService bookService;
@@ -34,21 +38,25 @@ public class BookController {
 
     @GetMapping("/{id}/download")
     public ResponseEntity<byte[]> downloadBook(@PathVariable String id) {
-        System.out.println("Downloading book with ID: " + id);
+        log.debug("Downloading book with ID: {}", id);
         Book book = bookService.getBook(id);
         if (book == null) {
-            System.out.println("Book not found for ID: " + id);
+            log.debug("Book not found for ID: {}", id);
             return ResponseEntity.notFound().build();
         }
         if (book.getFileData() == null) {
-             System.out.println("Book file data is null for ID: " + id);
-             return ResponseEntity.notFound().build();
+            log.debug("Book file data is null for ID: {}", id);
+            return ResponseEntity.notFound().build();
         }
-        System.out.println("Returning book file, size: " + book.getFileData().length + " bytes");
-        
-        String filename = book.getTitle() + ".epub";
+        log.debug("Returning book file, size: {} bytes", book.getFileData().length);
+
+        String rawTitle = book.getTitle();
+        String safeTitle = (rawTitle == null || rawTitle.isBlank())
+                ? "book"
+                : rawTitle.replaceAll("[\\\\/\\r\\n]", "_").trim();
+        String filename = safeTitle + ".epub";
         String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8).replaceAll("\\+", "%20");
-        
+
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/epub+zip"))
                 .header("Content-Disposition", "attachment; filename*=UTF-8''" + encodedFilename)
@@ -62,8 +70,14 @@ public class BookController {
             @RequestParam("author") String author,
             @RequestParam(value = "coverImage", required = false) String coverImage,
             @RequestParam("file") MultipartFile file) {
+        if (title == null || title.isBlank()) {
+            return Result.error(400, "Book title is required");
+        }
+        if (file == null || file.isEmpty()) {
+            return Result.error(400, "Book file is empty");
+        }
         try {
-            bookService.saveBook(userId, title, author, file, coverImage);
+            bookService.saveBook(userId, title.trim(), author != null ? author.trim() : "", file, coverImage);
             return Result.success();
         } catch (IOException e) {
             return Result.error(500, "Failed to upload file: " + e.getMessage());

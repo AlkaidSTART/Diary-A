@@ -27,10 +27,10 @@ public class MindMapController {
 
     @PostMapping
     public Result<MindMap> createMindMap(@RequestBody MindMap mindMap) {
-        if (mindMap.getUserId() == null || mindMap.getTitle() == null) {
+        if (mindMap.getUserId() == null || mindMap.getTitle() == null || mindMap.getTitle().isBlank()) {
             return Result.error(400, "User ID and Title are required");
         }
-        return Result.success(mindMapService.createMindMap(mindMap.getUserId(), mindMap.getTitle(), mindMap.getContent()));
+        return Result.success(mindMapService.createMindMap(mindMap.getUserId(), mindMap.getTitle().trim(), mindMap.getContent()));
     }
 
     @PutMapping("/{id}")
