@@ -106,7 +106,12 @@ export function DiaryProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedShortcuts = localStorage.getItem('diary_shortcuts');
     if (storedShortcuts) {
-      setShortcuts({ ...DEFAULT_SHORTCUTS, ...JSON.parse(storedShortcuts) });
+      try {
+        setShortcuts({ ...DEFAULT_SHORTCUTS, ...JSON.parse(storedShortcuts) });
+      } catch (e) {
+        console.error('Failed to parse stored shortcuts, resetting to defaults', e);
+        localStorage.removeItem('diary_shortcuts');
+      }
     }
   }, []);
 
@@ -188,7 +193,16 @@ export function DiaryProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedUser = localStorage.getItem('diary_user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (parsed && typeof parsed === 'object') {
+          const { password: _password, ...safeUser } = parsed;
+          setUser(safeUser as User);
+        }
+      } catch (e) {
+        console.error('Failed to parse stored user, clearing corrupted session', e);
+        localStorage.removeItem('diary_user');
+      }
     }
   }, []);
 
@@ -441,8 +455,9 @@ export function DiaryProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json();
       if (data.code === 200) {
-        setUser(data.data);
-        localStorage.setItem('diary_user', JSON.stringify(data.data));
+        const { password: _password, ...safeUser } = data.data || {};
+        setUser(safeUser as User);
+        localStorage.setItem('diary_user', JSON.stringify(safeUser));
         return true;
       }
       return false;
@@ -456,6 +471,8 @@ export function DiaryProvider({ children }: { children: ReactNode }) {
     setUser(null);
     localStorage.removeItem('diary_user');
     setEntries([]);
+    setSharedEntries([]);
+    setFolders([]);
   };
 
   const register = async (email: string, password: string, name: string) => {
@@ -467,8 +484,9 @@ export function DiaryProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json();
       if (data.code === 200) {
-        setUser(data.data);
-        localStorage.setItem('diary_user', JSON.stringify(data.data));
+        const { password: _password, ...safeUser } = data.data || {};
+        setUser(safeUser as User);
+        localStorage.setItem('diary_user', JSON.stringify(safeUser));
         return true;
       }
       return false;
@@ -497,7 +515,7 @@ export function DiaryProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
       if (data.code === 200) {
         if (data.data) {
-             setEntries([transformEntryFromApi(data.data), ...entries]);
+             setEntries(prev => [transformEntryFromApi(data.data), ...prev]);
         } else {
              fetchEntries(user.id);
         }
@@ -529,7 +547,7 @@ export function DiaryProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json();
       if (data.code === 200) {
-        setEntries(entries.map(e => 
+        setEntries(prev => prev.map(e => 
           e.id === id ? { ...e, ...updatedData, updatedAt: new Date() } : e
         ));
       } else {
@@ -548,7 +566,7 @@ export function DiaryProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json();
       if (data.code === 200) {
-        setEntries(entries.map(entry => 
+        setEntries(prev => prev.map(entry => 
           entry.id === id ? { ...entry, deleted: true } : entry
         ));
       }
@@ -564,7 +582,7 @@ export function DiaryProvider({ children }: { children: ReactNode }) {
       });
       const data = await res.json();
       if (data.code === 200) {
-        setEntries(entries.map(entry => 
+        setEntries(prev => prev.map(entry => 
           entry.id === id ? { ...entry, deleted: false } : entry
         ));
       }
@@ -580,7 +598,7 @@ export function DiaryProvider({ children }: { children: ReactNode }) {
         });
         const data = await res.json();
         if (data.code === 200) {
-          setEntries(entries.filter(entry => entry.id !== id));
+          setEntries(prev => prev.filter(entry => entry.id !== id));
         }
       } catch (error) {
          console.error('Permanent delete entry error:', error);
